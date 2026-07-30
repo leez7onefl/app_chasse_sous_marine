@@ -211,7 +211,12 @@ def _fetch_html(url: str) -> tuple[Optional[str], str]:
         else:
             diagnostic = f"{type(exc).__name__}: {exc}"
 
-        print(f"[mareespeche] Échec: {diagnostic}")
+        print(
+            f"[mareespeche] status={r.status_code}, "
+            f"content-type={r.headers.get('content-type')}, "
+            f"content-encoding={r.headers.get('content-encoding')}, "
+            f"premiers-octets={r.content[:30].hex()}"
+        )
         return None, diagnostic
 
 
