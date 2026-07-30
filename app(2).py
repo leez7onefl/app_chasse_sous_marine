@@ -1,5 +1,5 @@
 """
-Streamlit app - Scoring conditions chasse sous-marine Le Croisic / Batz / Pouliguen.
+Scoring conditions chasse sous-marine Le Croisic / Batz / Pouliguen.
 """
 
 from __future__ import annotations
@@ -37,13 +37,12 @@ TIDE_PREF_FR = {
 st.title("🐟 Scoring chasse sous-marine — Pouliguen / Batz / Le Croisic")
 st.caption(
     "Score sur 100 par spot pour un moment cible. Sources : Open-Meteo (vent, houle, "
-    "précipitations) + mareespeche.com (marées). Aucune clé API requise."
+    "précipitations) + mareespeche.com (marées)."
 )
 
 # ---------- Sidebar ----------
 
 with st.sidebar:
-    st.header("Moment cible")
     d = st.date_input(
         "Date",
         value=date.today(),
@@ -55,7 +54,7 @@ with st.sidebar:
 
     st.divider()
     st.header("Marées")
-    st.caption("Auto-fetch depuis mareespeche.com. Override si besoin.")
+    st.caption("Depuis mareespeche.com")
     use_manual_tide = st.checkbox("Saisie manuelle", value=False)
     show_debug = st.checkbox(
         "Debug scraping", value=False,
