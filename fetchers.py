@@ -31,7 +31,6 @@ UA = {
     ),
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-    "Accept-Encoding": "gzip, deflate, br",
     "Connection": "keep-alive",
     "Upgrade-Insecure-Requests": "1",
 }
@@ -176,14 +175,42 @@ def _parse_month(text: str, year: int, month: int) -> dict[date, DayTides]:
     return days
 
 
-def _fetch_html(url: str) -> Optional[str]:
+def _fetch_html(url: str) -> tuple[Optional[str], str]:
+    """Fetch HTML and keep a useful diagnostic for Streamlit Cloud logs/debug."""
     try:
         session = requests.Session()
-        r = session.get(url, headers=UA, timeout=20)
+        r = session.get(url, headers=UA, timeout=20, allow_redirects=True)
+
+        diagnostic = (
+            f"status={r.status_code}, "
+            f"content-type={r.headers.get('content-type', 'inconnu')}, "
+            f"content-encoding={r.headers.get('content-encoding', 'aucun')}, "
+            f"url-final={r.url}, bytes={len(r.content)}"
+        )
+        print(f"[mareespeche] {diagnostic}")
+
+        if not r.ok:
+            body_preview = _strip_html_to_text(r.text)[:1000]
+            print(f"[mareespeche] Réponse serveur: {body_preview}")
+
         r.raise_for_status()
-        return r.text
-    except Exception:
-        return None
+        return r.text, diagnostic
+
+    except requests.RequestException as exc:
+        response = exc.response
+        if response is not None:
+            body_preview = _strip_html_to_text(response.text)[:1000]
+            diagnostic = (
+                f"{type(exc).__name__}: {exc}; "
+                f"status={response.status_code}; "
+                f"url-final={response.url}; "
+                f"réponse={body_preview}"
+            )
+        else:
+            diagnostic = f"{type(exc).__name__}: {exc}"
+
+        print(f"[mareespeche] Échec: {diagnostic}")
+        return None, diagnostic
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -193,9 +220,13 @@ def fetch_tides_month(target_date: date, debug: bool = False) -> Optional[TideMo
     When debug=True, always returns a TideMonth object (possibly with empty days)
     and populates raw_snippet with something useful for inspection.
     """
-    html = _fetch_html(TIDES_URL)
+    html, fetch_diagnostic = _fetch_html(TIDES_URL)
     if html is None:
-        return TideMonth(days={}, raw_snippet="HTTP fetch failed") if debug else None
+        return (
+            TideMonth(days={}, raw_snippet=f"Échec HTTP : {fetch_diagnostic}")
+            if debug
+            else None
+        )
 
     text = _strip_html_to_text(html)
 
@@ -221,7 +252,10 @@ def fetch_tides_month(target_date: date, debug: bool = False) -> Optional[TideMo
             return TideMonth(days={}, raw_snippet=snippet)
         return None
 
-    return TideMonth(days=days, raw_snippet=text[:800] if debug else "")
+    return TideMonth(
+        days=days,
+        raw_snippet=(f"{fetch_diagnostic}\n\n{text[:800]}" if debug else ""),
+    )
 
 
 # ---------- Helpers ----------
